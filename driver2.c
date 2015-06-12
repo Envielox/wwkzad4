@@ -62,8 +62,13 @@ int main(void) {
         scanf("%*s%*s%lf%lf", &temp, &hum);
         have_reads = 1;
         receive_udp();
+        success = 0;
         step();
         send_udp();
+        if (success) {
+            // we probably want to dump more data
+            printf("%lf %lf\n", success_temp, success_hum);
+        }
         sleep(42);
     }
     return 0;
