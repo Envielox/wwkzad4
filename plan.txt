@@ -1,0 +1,13 @@
+- trigger send :: Msg -> IO ()
+  (writes to sendBuffer)
+- trigger succeeded :: Temp -> IO ()
+  (writes to success)
+- variable received :: Maybe Msg
+- variable temp :: Temp
+- main :: IO ()
+  main = do
+    handle all stdin, and set temp
+    receive a single message from udp, and set received
+    step
+    if success, print it and clear it
+    flush sendBuffer
