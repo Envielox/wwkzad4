@@ -5,26 +5,32 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <string.h>
+#include <stdbool.h>
 #include <unistd.h>
 
 // ---- message variables
-
+// are this just shared with copilot??
 int from;
 int message_type; // TODO enum
 int n;
 int v;
 int last_n;
 
+
 // -- driver globla variables
 int my_id;
 int sockfd;
 
-char send_requested;
+bool send_requested;
 int send_to;
 int send_message_type; // TODO enum
 int send_n;
 int send_v;
 int send_last_n;
+
+bool success;
+double success_temp;
+double success_hum;
 
 // -- driver helper functions
 
@@ -32,8 +38,37 @@ int send_last_n;
 void getpathtofile(int i, char * buff);
 void initialize(void);
 void cleanup(void);
+
+// gets message and fills "message variables" above
 int recv_udp(void);
+
+// sends message based on "send_* variables" above
 void send_udp(void);
+
+// -- copilot variables and functions
+
+// variables shared with copilot
+double temp;
+double hum;
+bool received;
+
+// request that a message be sent
+void send_trigger(int to, int type, int n, int v, int last_n)
+{
+    send_requested = true;
+    send_to = to;
+    send_message_type = type;
+    send_n = n;
+    send_v = v;
+    send_last_n = last_n;
+}
+
+// report that consensus has been reached
+void success_trigger(double temp, double hum) {
+    success = 1;
+    success_temp = temp;
+    success_hum = hum;
+}
 
 int main(int argc, char ** argv)
 {
@@ -57,27 +92,28 @@ int main(int argc, char ** argv)
     // --- SOCKET TIME ---
     initialize();
 
-    if (my_id == 0)
+    //scanf("%*s %*s %lf %lf\n", &temp, &hum);
+
+    if (my_id == 0) // for debug
     {
-        send_requested = 1;
-        send_to = 1;
-        send_message_type = 2;
-        send_n = 3;
-        send_v = 4;
-        send_last_n = 5;
+        send_trigger(1,2,3,4,5);
         send_udp();
     }
 
-    while(1) {
+    success = false;
+    while(!success) {
         int tmp = recv_udp();
         if (tmp > 0)
         {
+            // do something with data we have (or not)
             printf("I have got: %d %d %d %d %d\n", from, message_type, n, v, last_n);
         }
         else
         {
-            printf("I've got nothing\n");
+            printf("I've got nothing\n"); // for debug
         }
+        //step();
+        send_udp();
     }
 
     cleanup();
@@ -123,7 +159,7 @@ void cleanup(void)
 int recv_udp(void)
 {
     struct timeval t;
-    t.tv_sec = 5;
+    t.tv_sec = 5; // BAD hardcoded timeout
     t.tv_usec = 0;
 
     fd_set rfds;
@@ -133,7 +169,7 @@ int recv_udp(void)
     int select_val = select(sockfd + 1, &rfds, 0, 0, &t);
     if (select_val > 0)
     {
-        int buff[6];
+        int buff[5];
 
         int retv = recvfrom(sockfd, buff, 5 * sizeof(int), 0, 0, 0);
         if (retv < 0)
@@ -155,6 +191,9 @@ int recv_udp(void)
 
 void send_udp(void)
 {
+    if (!send_requested)
+        return;
+
     struct sockaddr_un friend1;
     friend1.sun_family = AF_UNIX;
     char friend_path_to_file[9];
@@ -174,4 +213,5 @@ void send_udp(void)
         perror("Error at sendto");
         exit(1);
     }
+    send_requested = false;
 }
