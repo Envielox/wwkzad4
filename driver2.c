@@ -57,19 +57,16 @@ void send_udp();
 int main(void) {
     // we should probably take fps as an argument, and run this loop at
     // that frequency
-    for (;;) {
+    success = 0;
+    while (!success) {
         // this needs to be non-blocking
         scanf("%*s%*s%lf%lf", &temp, &hum);
         have_reads = 1;
         receive_udp();
-        success = 0;
         step();
         send_udp();
-        if (success) {
-            // we probably want to dump more data
-            printf("%lf %lf\n", success_temp, success_hum);
-        }
         sleep(42);
     }
+    printf("%lf %lf\n", success_temp, success_hum);
     return 0;
 }
