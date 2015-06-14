@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
@@ -9,9 +10,19 @@
 #include <unistd.h>
 
 // ---- message variables
+typedef enum message
+{
+    NoMessage = 0,
+    Prepare,
+    PromiseWithLast,
+    PromiseWithoutLast,
+    Accept,
+    Acknowledge
+} message;
+
 // are this just shared with copilot??
-int8_t from;
-int message_type; // TODO enum
+uint8_t from;
+message message_type;
 int32_t n;
 double v;
 int32_t last_n;
@@ -19,13 +30,12 @@ int32_t last_n;
 
 // -- driver globla variables
 int my_id;
-int friends_ammount;
+int friends_amount;
 int friends_numbers[10];
 int sockfd;
 
-bool send_requested;
-int8_t send_to;
-int32_t send_message_type; // TODO enum
+uint8_t send_to;
+message send_message_type;
 int32_t send_n;
 double send_v;
 int32_t send_last_n;
@@ -56,7 +66,6 @@ double hum;
 // request that a message be sent
 void send_trigger(int32_t to, int32_t type, int32_t n, double v, int32_t last_n)
 {
-    send_requested = true;
     send_to = to;
     send_message_type = type;
     send_n = n;
@@ -79,10 +88,10 @@ int main(int argc, char ** argv)
         exit(1);
     }
 
-    friends_ammount = argc - 2;
+    friends_amount = argc - 2;
     my_id = atoi(argv[1]);
 
-    for (int i = 0; i < friends_ammount; i++)
+    for (int i = 0; i < friends_amount; i++)
     {
         friends_numbers[i] = atoi(argv[2 + i]);
     }
@@ -94,7 +103,7 @@ int main(int argc, char ** argv)
 
     if (my_id == 0) // for debug
     {
-        send_trigger(-1,2,3,4.2,5);
+        send_trigger(1,Prepare,3,4.2,5);
         send_udp();
     }
 
@@ -157,7 +166,7 @@ void cleanup(void)
 int recv_udp(void)
 {
     struct timeval t;
-    t.tv_sec = 5; // BAD hardcoded timeout
+    t.tv_sec = 1; // BAD hardcoded timeout
     t.tv_usec = 0;
 
     fd_set rfds;
@@ -187,26 +196,13 @@ int recv_udp(void)
     }
 }
 
-void send_udp(void)
+void raw_send_udp(void)
 {
-    if (!send_requested)
-        return;
-
-    if (send_to == -1)
-    {
-        for (int i = 0; i < friends_ammount; i++)
-        {
-            send_to = friends_numbers[i];
-            send_udp();
-        }
-    }
-
-    struct sockaddr_un friend1;
-    friend1.sun_family = AF_UNIX;
+    struct sockaddr_un friend;
+    friend.sun_family = AF_UNIX;
     char friend_path_to_file[9];
     getpathtofile(send_to, friend_path_to_file);
-    strcpy(friend1.sun_path, friend_path_to_file);
-
+    strcpy(friend.sun_path, friend_path_to_file);
 
     int buff[5];
     buff[0] = my_id;
@@ -215,10 +211,31 @@ void send_udp(void)
     *(double*)(&buff[3]) = send_v;
     buff[5] = send_last_n;
 
-    int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend1, sizeof(sa_family_t) + strlen(friend_path_to_file));
+    int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend, sizeof(sa_family_t) + strlen(friend_path_to_file));
     if (retv < 0) {
         perror("Error at sendto");
+        fprintf(stderr, "Tried to send to %d: %s\n", send_to, friend_path_to_file);
         exit(1);
     }
-    send_requested = false;
+}
+
+void send_udp(void)
+{
+    if (send_message_type == NoMessage)
+        return;
+
+    // broadcast
+    if (send_message_type == Prepare || send_message_type == Accept)
+    {
+        for (int i = 0; i < friends_amount; i++)
+        {
+            send_to = friends_numbers[i];
+            raw_send_udp();
+        }
+    }
+    else {
+        raw_send_udp();
+    }
+
+    send_message_type = NoMessage;
 }
