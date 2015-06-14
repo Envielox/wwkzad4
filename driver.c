@@ -10,19 +10,16 @@
 #include <unistd.h>
 
 // ---- message variables
-typedef enum message
-{
-    NoMessage = 0,
-    Prepare,
-    PromiseWithLast,
-    PromiseWithoutLast,
-    Accept,
-    Acknowledge
-} message;
+const int8_t NoMessage = 0;
+const int8_t Prepare = 1;
+const int8_t PromiseWithLast = 2;
+const int8_t PromiseWithoutLast = 3;
+const int8_t Accept = 4;
+const int8_t Acknowledge = 5;
 
 // are this just shared with copilot??
 uint8_t from;
-message message_type;
+uint8_t message_type;
 int32_t n;
 double v;
 int32_t last_n;
@@ -35,7 +32,7 @@ int friends_numbers[10];
 int sockfd;
 
 uint8_t send_to;
-message send_message_type;
+uint8_t send_message_type;
 int32_t send_n;
 double send_v;
 int32_t send_last_n;
