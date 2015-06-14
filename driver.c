@@ -10,23 +10,25 @@
 
 // ---- message variables
 // are this just shared with copilot??
-int from;
+int8_t from;
 int message_type; // TODO enum
-int n;
-int v;
-int last_n;
+int32_t n;
+double v;
+int32_t last_n;
 
 
 // -- driver globla variables
 int my_id;
+int friends_ammount;
+int friends_numbers[10];
 int sockfd;
 
 bool send_requested;
-int send_to;
-int send_message_type; // TODO enum
-int send_n;
-int send_v;
-int send_last_n;
+int8_t send_to;
+int32_t send_message_type; // TODO enum
+int32_t send_n;
+double send_v;
+int32_t send_last_n;
 
 bool success;
 double success_temp;
@@ -50,10 +52,9 @@ void send_udp(void);
 // variables shared with copilot
 double temp;
 double hum;
-bool received;
 
 // request that a message be sent
-void send_trigger(int to, int type, int n, int v, int last_n)
+void send_trigger(int32_t to, int32_t type, int32_t n, double v, int32_t last_n)
 {
     send_requested = true;
     send_to = to;
@@ -78,9 +79,6 @@ int main(int argc, char ** argv)
         exit(1);
     }
 
-    int friends_ammount;
-    int friends_numbers[10];
-
     friends_ammount = argc - 2;
     my_id = atoi(argv[1]);
 
@@ -96,7 +94,7 @@ int main(int argc, char ** argv)
 
     if (my_id == 0) // for debug
     {
-        send_trigger(1,2,3,4,5);
+        send_trigger(-1,2,3,4.2,5);
         send_udp();
     }
 
@@ -106,7 +104,7 @@ int main(int argc, char ** argv)
         if (tmp > 0)
         {
             // do something with data we have (or not)
-            printf("I have got: %d %d %d %d %d\n", from, message_type, n, v, last_n);
+            printf("I have got: %d %d %d %f %d\n", from, message_type, n, v, last_n);
         }
         else
         {
@@ -169,9 +167,9 @@ int recv_udp(void)
     int select_val = select(sockfd + 1, &rfds, 0, 0, &t);
     if (select_val > 0)
     {
-        int buff[5];
+        int32_t buff[6];
 
-        int retv = recvfrom(sockfd, buff, 5 * sizeof(int), 0, 0, 0);
+        int retv = recvfrom(sockfd, buff, 6 * sizeof(int32_t), 0, 0, 0);
         if (retv < 0)
         {
             perror("Error at receiving");
@@ -180,8 +178,8 @@ int recv_udp(void)
         from = buff[0];
         message_type = buff[1];
         n = buff[2];
-        v = buff[3];
-        last_n = buff[4];
+        v = *(double*)(&buff[3]);
+        last_n = buff[5];
 
         return 1;
     } else {
@@ -194,6 +192,15 @@ void send_udp(void)
     if (!send_requested)
         return;
 
+    if (send_to == -1)
+    {
+        for (int i = 0; i < friends_ammount; i++)
+        {
+            send_to = friends_numbers[i];
+            send_udp();
+        }
+    }
+
     struct sockaddr_un friend1;
     friend1.sun_family = AF_UNIX;
     char friend_path_to_file[9];
@@ -205,10 +212,10 @@ void send_udp(void)
     buff[0] = my_id;
     buff[1] = send_message_type;
     buff[2] = send_n;
-    buff[3] = send_v;
-    buff[4] = send_last_n;
+    *(double*)(&buff[3]) = send_v;
+    buff[5] = send_last_n;
 
-    int retv = sendto(sockfd, buff, 5 * sizeof(int), 0, (struct sockaddr*)&friend1, sizeof(sa_family_t) + strlen(friend_path_to_file));
+    int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend1, sizeof(sa_family_t) + strlen(friend_path_to_file));
     if (retv < 0) {
         perror("Error at sendto");
         exit(1);
