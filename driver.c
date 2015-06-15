@@ -15,10 +15,9 @@
 // ---- message variables
 const int8_t NoMessage = 0;
 const int8_t Prepare = 1;
-const int8_t PromiseWithLast = 2;
-const int8_t PromiseWithoutLast = 3;
-const int8_t Accept = 4;
-const int8_t Acknowledge = 5;
+const int8_t Promise = 2;
+const int8_t Accept = 3;
+const int8_t Acknowledge = 4;
 
 // are this just shared with copilot??
 uint8_t recv_from;
