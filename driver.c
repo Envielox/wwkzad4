@@ -10,6 +10,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "copilot-c99-codegen/copilot.h"
+
 // ---- message variables
 const int8_t NoMessage = 0;
 const int8_t Prepare = 1;
@@ -19,15 +21,14 @@ const int8_t Accept = 4;
 const int8_t Acknowledge = 5;
 
 // are this just shared with copilot??
-uint8_t from;
-uint8_t message_type;
-int32_t n;
-double temp;
-int32_t last_n;
-
+uint8_t recv_from;
+uint8_t recv_message_type;
+int32_t recv_n;
+double recv_temp;
+int32_t recv_last_n;
 
 // -- driver globla variables
-int my_id;
+uint8_t my_id;
 int friends_amount;
 int friends_numbers[10];
 int sockfd;
@@ -64,7 +65,7 @@ double hum;
 double rand01;
 
 // request that a message be sent
-void send_trigger(int32_t to, int32_t type, int32_t n, double temp, int32_t last_n)
+void send_trigger(uint8_t to, uint8_t type, int32_t n, int32_t last_n, double temp)
 {
     send_to = to;
     send_message_type = type;
@@ -84,7 +85,7 @@ int main(int argc, char ** argv)
 {
     // -- parse command line arguments
     if (argc < 2) {
-        fprintf(stderr, "You need to pass more arguments");
+        fprintf(stderr, "You need to pass more arguments\n");
         exit(1);
     }
     srand(time(NULL));
@@ -102,11 +103,11 @@ int main(int argc, char ** argv)
 
     //scanf("%*s %*s %lf %lf\n", &temp, &hum);
 
-    if (my_id == 0) // for debug
+    /*if (my_id == 0) // for debug
     {
-        send_trigger(1,Prepare,3,4.2,5);
+        send_trigger(1,Prepare,3,5,4.2);
         send_udp();
-    }
+    }*/
 
     success = false;
     while(!success) {
@@ -114,14 +115,14 @@ int main(int argc, char ** argv)
         if (tmp > 0)
         {
             // do something with data we have (or not)
-            printf("I have got: %d %d %d %f %d\n", from, message_type, n, temp, last_n);
+            printf("I have got: %d %d %d %f %d\n", recv_from, recv_message_type, recv_n, recv_temp, recv_last_n);
         }
         else
         {
             printf("I've got nothing\n"); // for debug
         }
         rand01 = rand() / RAND_MAX;
-        //step();
+        step();
         send_udp();
     }
 
@@ -186,14 +187,15 @@ int recv_udp(void)
             perror("Error at receiving");
             exit(1);
         }
-        from = buff[0];
-        message_type = buff[1];
-        n = buff[2];
-        temp = *(double*)(&buff[3]);
-        last_n = buff[5];
+        recv_from = buff[0];
+        recv_message_type = buff[1];
+        recv_n = buff[2];
+        recv_temp = *(double*)(&buff[3]);
+        recv_last_n = buff[5];
 
         return 1;
     } else {
+        recv_message_type = NoMessage;
         return 0;
     }
 }
