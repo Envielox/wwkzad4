@@ -47,7 +47,7 @@ paxos = do
     -- stream of random doubles between 0 and 1
     rand01      = externD "rand01" $ Just $ P.cycle [0.15, 0.05, 0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 
-    -- arguments for send_trigger (meanings analogous to recv* above)
+    -- arguments for send_trigger (meanings analogous to those of recv* above)
     sendMsgType :: Stream Word8
     sendMsgType = if wannaPrepare
         then prepare
