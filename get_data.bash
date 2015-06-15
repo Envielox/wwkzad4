@@ -19,4 +19,5 @@ for (( i = 0; i < 4; i++ )); do
     echo "Starting process with: " $stripped_data
 
     (echo $stripped_data | ./driver ${args[$i]} > output${i}.out 2> err${i}.err) &
+    sleep 1
 done

@@ -224,7 +224,7 @@ void raw_send_udp(void)
     *(double*)(&buff[3]) = send_temp;
     buff[5] = send_last_n;
 
-    printf("Sending my_id: %d, mt: %d, N: %d, last_N: %d, temp: %f\n", my_id, send_message_type, send_n, send_last_n, send_temp);
+    printf("Sending to %d -> my_id: %d, mt: %d, N: %d, last_N: %d, temp: %f\n", send_to, my_id, send_message_type, send_n, send_last_n, send_temp);
 
     int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend, sizeof(sa_family_t) + strlen(friend_path_to_file));
     if (retv < 0) {
@@ -247,6 +247,8 @@ void send_udp(void)
             send_to = friends_numbers[i];
             raw_send_udp();
         }
+        send_to = my_id;
+        raw_send_udp();
     }
     else {
         raw_send_udp();
