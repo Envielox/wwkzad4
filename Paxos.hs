@@ -12,7 +12,7 @@ idle, trying, polling :: Word8
 idle : trying : polling : _ = [0..]
 
 yesnono :: Stream Bool
-yesnono = [True] ++ constB False
+yesnono = [True] ++ false
 
 nReplicas :: Int32
 nReplicas = 4
@@ -102,27 +102,27 @@ paxos = do
     myPromisors2, laggingPromisors2 :: Stream Bool
     myPromisors3, laggingPromisors3 :: Stream Bool
     myPromisors0 = if wannaPrepare
-        then constant False
+        then false
         else if validPromise && recvFrom == constant 0
-            then constant True
+            then true
             else laggingPromisors0
     laggingPromisors0 =  [False] ++ myPromisors0
     myPromisors1 = if wannaPrepare
-        then constant False
+        then false
         else if validPromise && recvFrom == constant 1
-            then constant True
+            then true
             else laggingPromisors1
     laggingPromisors1 =  [False] ++ myPromisors1
     myPromisors2 = if wannaPrepare
-        then constant False
+        then false
         else if validPromise && recvFrom == constant 2
-            then constant True
+            then true
             else laggingPromisors2
     laggingPromisors2 =  [False] ++ myPromisors2
     myPromisors3 = if wannaPrepare
-        then constant False
+        then false
         else if validPromise && recvFrom == constant 3
-            then constant True
+            then true
             else laggingPromisors3
     laggingPromisors3 =  [False] ++ myPromisors3
 
@@ -160,27 +160,27 @@ paxos = do
     myAckers2, laggingAckers2 :: Stream Bool
     myAckers3, laggingAckers3 :: Stream Bool
     myAckers0 = if wannaPoll
-        then constant False
+        then false
         else if validAck && recvFrom == constant 0
-            then constant True
+            then true
             else laggingAckers0
     laggingAckers0 = [False] ++ myAckers0
     myAckers1 = if wannaPoll
-        then constant False
+        then false
         else if validAck && recvFrom == constant 1
-            then constant True
+            then true
             else laggingAckers1
     laggingAckers1 = [False] ++ myAckers1
     myAckers2 = if wannaPoll
-        then constant False
+        then false
         else if validAck && recvFrom == constant 2
-            then constant True
+            then true
             else laggingAckers2
     laggingAckers2 = [False] ++ myAckers2
     myAckers3 = if wannaPoll
-        then constant False
+        then false
         else if validAck && recvFrom == constant 3
-            then constant True
+            then true
             else laggingAckers3
     laggingAckers3 = [False] ++ myAckers3
 
@@ -192,7 +192,7 @@ paxos = do
         || myPromisors0 && myPromisors2 && myPromisors3
         || myPromisors1 && myPromisors2 && myPromisors3)
     wannaAck = recvMsgType == constant accept && recvN == laggingLastPromiseN
-    wannaPrepare = {-not success &&-} recvMsgType == constant noMsg && rand01 < 0.1
+    wannaPrepare = recvMsgType == constant noMsg && rand01 < 0.1
 
     {-
     -- pseudocode
