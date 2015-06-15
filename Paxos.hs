@@ -63,10 +63,10 @@ paxos = do
     sendTemp = if wannaPoll then myTemp else myLastAckTemp
 
     success :: Stream Bool
-    success = myAckers 0 && myAckers 1 && myAckers 2
-        || myAckers 0 && myAckers 1 && myAckers 3
-        || myAckers 0 && myAckers 2 && myAckers 3
-        || myAckers 1 && myAckers 2 && myAckers 3
+    success = myAckers0 && myAckers1 && myAckers2
+        || myAckers0 && myAckers1 && myAckers3
+        || myAckers0 && myAckers2 && myAckers3
+        || myAckers1 && myAckers2 && myAckers3
 
     successTemp :: Stream Double
     successTemp = myTemp
@@ -75,7 +75,7 @@ paxos = do
     myLastPreparedN = if wannaPrepare
         then laggingLastPreparedN + constant nReplicas
         else laggingLastPreparedN
-    laggingLastPreparedN = if yesnono then cast myId else myLastPreparedN
+    laggingLastPreparedN = if yesnono then cast myId else [-1] ++ myLastPreparedN
 
     myLastAckN, laggingLastAckN :: Stream Int32
     myLastAckN = if wannaAck then recvN else laggingLastAckN
@@ -97,13 +97,34 @@ paxos = do
             else laggingStatus
     laggingStatus = [idle] ++ myStatus
 
-    myPromisors, laggingPromisors :: Word8 -> Stream Bool
-    myPromisors i = if wannaPrepare
+    myPromisors0, laggingPromisors0 :: Stream Bool
+    myPromisors1, laggingPromisors1 :: Stream Bool
+    myPromisors2, laggingPromisors2 :: Stream Bool
+    myPromisors3, laggingPromisors3 :: Stream Bool
+    myPromisors0 = if wannaPrepare
         then constant False
-        else if validPromise && recvFrom == constant i
+        else if validPromise && recvFrom == constant 0
             then constant True
-            else laggingPromisors i
-    laggingPromisors i = [False] ++ myPromisors i
+            else laggingPromisors0
+    laggingPromisors0 =  [False] ++ myPromisors0
+    myPromisors1 = if wannaPrepare
+        then constant False
+        else if validPromise && recvFrom == constant 1
+            then constant True
+            else laggingPromisors1
+    laggingPromisors1 =  [False] ++ myPromisors1
+    myPromisors2 = if wannaPrepare
+        then constant False
+        else if validPromise && recvFrom == constant 2
+            then constant True
+            else laggingPromisors2
+    laggingPromisors2 =  [False] ++ myPromisors2
+    myPromisors3 = if wannaPrepare
+        then constant False
+        else if validPromise && recvFrom == constant 3
+            then constant True
+            else laggingPromisors3
+    laggingPromisors3 =  [False] ++ myPromisors3
 
     validPromise, betterPromise :: Stream Bool
     validPromise = laggingStatus == constant trying && recvMsgType == constant promise && recvN == laggingLastPreparedN
@@ -134,23 +155,44 @@ paxos = do
         else laggingTemp
     laggingTemp = [0] ++ myTemp
 
-    myAckers, laggingAckers :: Word8 -> Stream Bool
-    myAckers i = if wannaPoll
+    myAckers0, laggingAckers0 :: Stream Bool
+    myAckers1, laggingAckers1 :: Stream Bool
+    myAckers2, laggingAckers2 :: Stream Bool
+    myAckers3, laggingAckers3 :: Stream Bool
+    myAckers0 = if wannaPoll
         then constant False
-        else if validAck && recvFrom == constant i
+        else if validAck && recvFrom == constant 0
             then constant True
-            else laggingAckers i
-    laggingAckers i = [False] ++ myAckers i
+            else laggingAckers0
+    laggingAckers0 = [False] ++ myAckers0
+    myAckers1 = if wannaPoll
+        then constant False
+        else if validAck && recvFrom == constant 1
+            then constant True
+            else laggingAckers1
+    laggingAckers1 = [False] ++ myAckers1
+    myAckers2 = if wannaPoll
+        then constant False
+        else if validAck && recvFrom == constant 2
+            then constant True
+            else laggingAckers2
+    laggingAckers2 = [False] ++ myAckers2
+    myAckers3 = if wannaPoll
+        then constant False
+        else if validAck && recvFrom == constant 3
+            then constant True
+            else laggingAckers3
+    laggingAckers3 = [False] ++ myAckers3
 
     wannaPrepare, wannaPromise, wannaPoll, wannaAck :: Stream Bool
     wannaPromise = recvMsgType == constant prepare && recvN > laggingLastPromiseN
     wannaPoll = validPromise &&
-        (myPromisors 0 && myPromisors 1 && myPromisors 2
-        || myPromisors 0 && myPromisors 1 && myPromisors 3
-        || myPromisors 0 && myPromisors 2 && myPromisors 3
-        || myPromisors 1 && myPromisors 2 && myPromisors 3)
+        (myPromisors0 && myPromisors1 && myPromisors2
+        || myPromisors0 && myPromisors1 && myPromisors3
+        || myPromisors0 && myPromisors2 && myPromisors3
+        || myPromisors1 && myPromisors2 && myPromisors3)
     wannaAck = recvMsgType == constant accept && recvN == laggingLastPromiseN
-    wannaPrepare = not success && recvMsgType == constant noMsg && rand01 < 0.1
+    wannaPrepare = {-not success &&-} recvMsgType == constant noMsg && rand01 < 0.1
 
     {-
     -- pseudocode

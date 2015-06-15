@@ -61,7 +61,7 @@ void send_udp(void);
 double temp;
 double hum;
 
-int32_t rand01;
+double rand01;
 
 // request that a message be sent
 void send_trigger(int32_t to, int32_t type, int32_t n, double temp, int32_t last_n)
@@ -120,7 +120,7 @@ int main(int argc, char ** argv)
         {
             printf("I've got nothing\n"); // for debug
         }
-        rand01 = rand() % 2;
+        rand01 = rand() / RAND_MAX;
         //step();
         send_udp();
     }
