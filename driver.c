@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <string.h>
 #include <stdbool.h>
+#include <time.h>
 #include <unistd.h>
 
 // ---- message variables
@@ -21,7 +22,7 @@ const int8_t Acknowledge = 5;
 uint8_t from;
 uint8_t message_type;
 int32_t n;
-double v;
+double temp;
 int32_t last_n;
 
 
@@ -34,7 +35,7 @@ int sockfd;
 uint8_t send_to;
 uint8_t send_message_type;
 int32_t send_n;
-double send_v;
+double send_temp;
 int32_t send_last_n;
 
 bool success;
@@ -60,13 +61,15 @@ void send_udp(void);
 double temp;
 double hum;
 
+int32_t rand01;
+
 // request that a message be sent
-void send_trigger(int32_t to, int32_t type, int32_t n, double v, int32_t last_n)
+void send_trigger(int32_t to, int32_t type, int32_t n, double temp, int32_t last_n)
 {
     send_to = to;
     send_message_type = type;
     send_n = n;
-    send_v = v;
+    send_temp = temp;
     send_last_n = last_n;
 }
 
@@ -84,6 +87,7 @@ int main(int argc, char ** argv)
         fprintf(stderr, "You need to pass more arguments");
         exit(1);
     }
+    srand(time(NULL));
 
     friends_amount = argc - 2;
     my_id = atoi(argv[1]);
@@ -110,12 +114,13 @@ int main(int argc, char ** argv)
         if (tmp > 0)
         {
             // do something with data we have (or not)
-            printf("I have got: %d %d %d %f %d\n", from, message_type, n, v, last_n);
+            printf("I have got: %d %d %d %f %d\n", from, message_type, n, temp, last_n);
         }
         else
         {
             printf("I've got nothing\n"); // for debug
         }
+        rand01 = rand() % 2;
         //step();
         send_udp();
     }
@@ -184,7 +189,7 @@ int recv_udp(void)
         from = buff[0];
         message_type = buff[1];
         n = buff[2];
-        v = *(double*)(&buff[3]);
+        temp = *(double*)(&buff[3]);
         last_n = buff[5];
 
         return 1;
@@ -205,7 +210,7 @@ void raw_send_udp(void)
     buff[0] = my_id;
     buff[1] = send_message_type;
     buff[2] = send_n;
-    *(double*)(&buff[3]) = send_v;
+    *(double*)(&buff[3]) = send_temp;
     buff[5] = send_last_n;
 
     int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend, sizeof(sa_family_t) + strlen(friend_path_to_file));
