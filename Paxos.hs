@@ -11,9 +11,6 @@ noMsg : prepare : promise : accept : acknowledge : _ = [0..]
 idle, trying, polling :: Word8
 idle : trying : polling : _ = [0..]
 
-quorum :: Int32
-quorum = nReplicas `P.div` 2 P.+ 1
-
 yesnono :: Stream Bool
 yesnono = [True] ++ constB False
 
@@ -22,7 +19,7 @@ nReplicas = 4
 
 paxos :: Spec
 paxos = do
-    trigger "send_trigger" (sendMsgType /= constant noMsg) [arg sendMsgType, arg sendN, arg sendLastN, arg sendTemp]
+    trigger "send_trigger" (sendMsgType /= constant noMsg) [arg sendTo, arg sendMsgType, arg sendN, arg sendLastN, arg sendTemp]
     trigger "success_trigger" success [arg successTemp, arg successHum]
     where
     -- external streams
@@ -56,6 +53,9 @@ paxos = do
         then myLastPreparedN
         else recvN
 
+    sendTo :: Stream Word8
+    sendTo = recvFrom
+
     sendLastN :: Stream Int32
     sendLastN = myLastAckN
 
@@ -63,7 +63,10 @@ paxos = do
     sendTemp = if wannaPoll then myTemp else myLastAckTemp
 
     success :: Stream Bool
-    success = undefined
+    success = myAckers 0 && myAckers 1 && myAckers 2
+        || myAckers 0 && myAckers 1 && myAckers 3
+        || myAckers 0 && myAckers 2 && myAckers 3
+        || myAckers 1 && myAckers 2 && myAckers 3
 
     successTemp :: Stream Double
     successTemp = myTemp
@@ -94,12 +97,20 @@ paxos = do
             else laggingStatus
     laggingStatus = [idle] ++ myStatus
 
-    myPromisors :: Stream ()
-    myPromisors = undefined
+    myPromisors, laggingPromisors :: Word8 -> Stream Bool
+    myPromisors i = if wannaPrepare
+        then constant False
+        else if validPromise && recvFrom == constant i
+            then constant True
+            else laggingPromisors i
+    laggingPromisors i = [False] ++ myPromisors i
 
     validPromise, betterPromise :: Stream Bool
     validPromise = laggingStatus == constant trying && recvMsgType == constant promise && recvN == laggingLastPreparedN
     betterPromise = validPromise && recvLastN > laggingBestPromisedN
+
+    validAck :: Stream Bool
+    validAck = laggingStatus == constant polling && recvMsgType == constant acknowledge && recvN == laggingLastPreparedN
 
     myBestPromisedN, laggingBestPromisedN :: Stream Int32
     myBestPromisedN = if wannaPrepare
@@ -123,12 +134,21 @@ paxos = do
         else laggingTemp
     laggingTemp = [0] ++ myTemp
 
-    myAckers :: Stream ()
-    myAckers = undefined
+    myAckers, laggingAckers :: Word8 -> Stream Bool
+    myAckers i = if wannaPoll
+        then constant False
+        else if validAck && recvFrom == constant i
+            then constant True
+            else laggingAckers i
+    laggingAckers i = [False] ++ myAckers i
 
     wannaPrepare, wannaPromise, wannaPoll, wannaAck :: Stream Bool
     wannaPromise = recvMsgType == constant prepare && recvN > laggingLastPromiseN
-    wannaPoll = undefined
+    wannaPoll = validPromise &&
+        (myPromisors 0 && myPromisors 1 && myPromisors 2
+        || myPromisors 0 && myPromisors 1 && myPromisors 3
+        || myPromisors 0 && myPromisors 2 && myPromisors 3
+        || myPromisors 1 && myPromisors 2 && myPromisors 3)
     wannaAck = recvMsgType == constant accept && recvN == laggingLastPromiseN
     wannaPrepare = not success && recvMsgType == constant noMsg && rand01 < 0.1
 
