@@ -5,38 +5,49 @@ module Paxos (paxos) where
 import Language.Copilot
 import qualified Prelude as P
 
+-- message types (constant streams)
 noMsg, prepare, promise, accept, acknowledge :: Stream Word8
 (noMsg, prepare, promise, accept, acknowledge) = (0, 1, 2, 3, 4)
 
+-- possible statuses (constant streams)
 idle, trying, polling :: Stream Word8
 (idle, trying, polling) = (0, 1, 2)
 
 yesnono :: Stream Bool
 yesnono = [True] ++ false
 
+-- number of parallel processes (majority of which are needed for consensus)
 nReplicas :: Stream Int32
 nReplicas = 4
 
 paxos :: Spec
 paxos = do
+    -- request that a message be sent
     trigger "send_trigger" (sendMsgType /= noMsg) [arg sendTo, arg sendMsgType, arg sendN, arg sendLastN, arg sendTemp]
-    trigger "success_trigger" success [arg successTemp, arg successHum]
+    -- report success
+    trigger "success_trigger" success [arg successTemp]
     where
     -- external streams
+    -- temperature read from the sensor
     temp        = externD "temp" $ Just [36.6..]
-    hum         = externD "hum" Nothing
+    -- type of the received message (possibly noMsg)
     recvMsgType = externW8 "recv_message_type" $ Just $ repeat 0
+    -- sender id (between 0 and nReplicas-1)
     recvFrom    = externW8 "recv_from" $ Just $ repeat 0
+    -- ballot number concerned
     recvN       = externI32 "recv_n" $ Just $ repeat 0
+    -- only meaningful for promise messages:
+    -- highest ballot number acknowledged by the sender (-1 if no acks)
     recvLastN   = externI32 "recv_last_n" $ Just $ repeat 0
+    -- promise: temperature of ballot recvLastN,
+    -- accept: temperature that we're trying to get everyone to agree on
     recvTemp    = externD "recv_temp" $ Just $ repeat 0
+    -- a number between 0 and nReplicas-1 (constant stream)
     myId        = externW8 "my_id" $ Just $ repeat 0
+    -- stream of random doubles between 0 and 1
     rand01      = externD "rand01" $ Just $ P.cycle [0.15, 0.05, 0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
 
-    -- for now
-    successHum :: Stream Double
-    successHum = successTemp
-
+    -- arguments for send_trigger (meanings analogous to recv* above)
     sendMsgType :: Stream Word8
     sendMsgType = if wannaPrepare
         then prepare
@@ -62,21 +73,25 @@ paxos = do
     sendTemp :: Stream Double
     sendTemp = if wannaPoll then myTemp else myLastAckTemp
 
+    -- consensus reached (acks have been received from a majority)
     success :: Stream Bool
     success = myAckers0 && myAckers1 && myAckers2
         || myAckers0 && myAckers1 && myAckers3
         || myAckers0 && myAckers2 && myAckers3
         || myAckers1 && myAckers2 && myAckers3
 
+    -- consensus value
     successTemp :: Stream Double
     successTemp = myTemp
 
+    -- ballot number of my last (or current) prepare message
     myLastPreparedN, laggingLastPreparedN :: Stream Int32
     myLastPreparedN = if wannaPrepare
         then nextN
         else laggingLastPreparedN
     laggingLastPreparedN = if yesnono then cast myId else [-1] ++ myLastPreparedN
 
+    -- helper streams for calculating next ballot number
     nextN :: Stream Int32
     nextN = nReplicas + if laggingLastPreparedN > candidateN
         then laggingLastPreparedN
@@ -85,18 +100,22 @@ paxos = do
     candidateN :: Stream Int32
     candidateN = myLastPromiseN - myLastPromiseN `mod` nReplicas + cast myId
 
+    -- ballot number from my last (or current) acknowledge message
     myLastAckN, laggingLastAckN :: Stream Int32
     myLastAckN = if wannaAck then recvN else laggingLastAckN
     laggingLastAckN = [-1] ++ myLastAckN
 
+    -- ...and associated value
     myLastAckTemp, laggingLastAckTemp :: Stream Double
     myLastAckTemp = if wannaAck then recvTemp else laggingLastAckTemp
     laggingLastAckTemp = [0] ++ myLastAckTemp
 
+    -- ballot number from my last (or current) promise message
     myLastPromiseN, laggingLastPromiseN :: Stream Int32
     myLastPromiseN = if wannaPromise then recvN else laggingLastPromiseN
     laggingLastPromiseN = [-1] ++ myLastPromiseN
 
+    -- current status: idle, trying or polling
     myStatus, laggingStatus :: Stream Word8
     myStatus = if wannaPrepare
         then trying
@@ -105,6 +124,7 @@ paxos = do
             else laggingStatus
     laggingStatus = [0] ++ myStatus
 
+    -- true if I have received a promise in response to my prepare
     myPromisors0, laggingPromisors0 :: Stream Bool
     myPromisors1, laggingPromisors1 :: Stream Bool
     myPromisors2, laggingPromisors2 :: Stream Bool
@@ -141,6 +161,7 @@ paxos = do
     validAck :: Stream Bool
     validAck = laggingStatus == polling && recvMsgType == acknowledge && recvN == laggingLastPreparedN
 
+    -- highest ballot number received in a promise message
     myBestPromisedN, laggingBestPromisedN :: Stream Int32
     myBestPromisedN = if wannaPrepare
         then (-1)
@@ -149,6 +170,7 @@ paxos = do
             else laggingBestPromisedN
     laggingBestPromisedN = [-1] ++ myBestPromisedN
 
+    -- associated temperature
     myBestPromisedTemp, laggingBestPromisedTemp :: Stream Double
     myBestPromisedTemp = if betterPromise
             then recvTemp
@@ -163,6 +185,7 @@ paxos = do
         else laggingTemp
     laggingTemp = [0] ++ myTemp
 
+    -- true if I have received an acknowledge message in response to my accept
     myAckers0, laggingAckers0 :: Stream Bool
     myAckers1, laggingAckers1 :: Stream Bool
     myAckers2, laggingAckers2 :: Stream Bool
@@ -192,6 +215,7 @@ paxos = do
             else laggingAckers3
     laggingAckers3 = [False] ++ myAckers3
 
+    -- true when it's a good idea to send a particular type of message
     wannaPrepare, wannaPromise, wannaPoll, wannaAck :: Stream Bool
     wannaPromise = recvMsgType == prepare && recvN > laggingLastPromiseN
     wannaPoll = validPromise &&
@@ -201,81 +225,3 @@ paxos = do
         || myPromisors1 && myPromisors2 && myPromisors3)
     wannaAck = recvMsgType == accept && recvN == laggingLastPromiseN
     wannaPrepare = recvMsgType == noMsg && rand01 < 0.1
-
-    {-
-    -- pseudocode
-
-    -- state
-    myLastPreparedN := whatever
-    myLastAckN := -1 (aka Nothing)
-    myLastAckTemp := whatever
-    myLastPromiseN := -1
-    myStatus := idle
-    myPromisors := whatever
-    myBestPromisedN := whatever
-    myBestPromisedTemp := whatever
-    myTemp := whatever
-    myAckers := whatever
-
-    -- nothing received, no success, considering prepare
-    wannaPrepare = nothingBetterToDo && random?
-    myStatus := trying
-    myVotes := empty
-    myLastPreparedN := generate
-    sendTo := whatever
-    sendMsgType := prepare
-    sendN := myLastPreparedN
-    send* := whatever
-    myBestPromisedN := Nothing
-    myBestPromisedTemp := Nothing
-
-    -- prepare received
-    recvN <= myLastPromiseN -> doNothing
-    recvN > myLastPromiseN:
-    myLastPromiseN := recvN
-    sendMsgType := promiseAnything/promiseLast
-    sendTo := recvFrom
-    sendN := recvN
-    sendLastN := myLastAckN/empty
-    sendTemp := myLastAckTemp/empty
-
-    -- promise received
-    recvN /= myLastPreparedN || myStatus /= trying -> doNothing
-    otherwise:
-    myPromisors <>= [recvFrom]
-    if recvLastN > myBestPromisedN:
-        myBestPromisedN
-        myBestPromisedTemp := recvTemp
-    if size myPromisors < quorum:
-        sendMsgType := noMsg
-        send* := whatever
-    else:
-        myStatus := polling
-        myAckers := empty
-        myTemp := myBestPromisedTemp/temp
-        -- can we send this to people that haven't responded with a promise? below i assume we can, not sure though
-        sendMsgType := accept
-        sendN := myLastPreparedN
-        sendTemp := myTemp
-        send* := whatever
-
-    -- accept received
-    recvN /= myLastPromiseN -> doNothing
-    otherwise:
-    myLastAckN := recvN
-    myLastAckTemp := recvTemp
-    sendMsgType := acknowledge
-    sendTo := recvFrom
-    sendN := recvN
-    send* := whatever
-
-    -- acknowledge received
-    recvN /= myLastPreparedN || myStatus /= polling -> doNothing
-    otherwise:
-    myAckers <>= [recvFrom]
-    sendMsgType := noMsg
-    send* := whatever
-    if size myAckers >= quorum:
-        success := True
-        successTemp := myTemp
-    -}
