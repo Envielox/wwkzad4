@@ -4,22 +4,17 @@ addr[1]="https://portal.invinets.com/latest_reading/update/424EU"
 addr[2]="https://portal.invinets.com/latest_reading/update/424GK"
 addr[3]="https://portal.invinets.com/latest_reading/update/424FY"
 
-if [ -z "$1" ]
-then
-    echo "First argument not set - provide 0-3"
-    exit 1
-fi
 
-delay=10
-if [ -n "$2" ]
-then
-    delay=$2
-fi
+args[0]="0 1 2 3"
+args[1]="1 0 2 3"
+args[2]="2 0 1 3"
+args[3]="3 0 1 2"
 
-while [ true ]
-do
-    data=$(curl -s ${addr[$1]})
+#while [ true ]
+#do
+for (( i = 0; i < 4; i++ )); do
+    data=$(curl -s ${addr[$i]})
     stripped_data=$(echo $data | sed -e 's/"[^"]*": //g' | tr -d '{},"')
-    echo $stripped_data
-    sleep $delay
+
+    (echo $stripped_data | ./driver ${args[$i]} > output${i}.out 2> err${i}.err) &
 done

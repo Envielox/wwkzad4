@@ -185,7 +185,7 @@ int recv_udp(void)
         if (retv < 0)
         {
             perror("Error at receiving");
-            exit(1);
+            /*exit(1);*/
         }
         recv_from = buff[0];
         recv_message_type = buff[1];
@@ -219,7 +219,7 @@ void raw_send_udp(void)
     if (retv < 0) {
         perror("Error at sendto");
         fprintf(stderr, "Tried to send to %d: %s\n", send_to, friend_path_to_file);
-        exit(1);
+        /*exit(1);*/
     }
 }
 

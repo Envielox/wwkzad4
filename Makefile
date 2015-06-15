@@ -10,5 +10,5 @@ copilot-c99-codegen/copilot.c: Paxos.hs
 	runhaskell GenerateCode.hs
 
 clean:
-	rm -f *.o
+	rm -f *.o *.out *.err socket?
 	rm -rf copilot-c99-codegen
