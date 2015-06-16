@@ -49,7 +49,7 @@ paxos = do
     -- stream with common offset for the entire group
     offset      = myId - (myId `mod` 4)
 
-    -- arguments for send_trigger (meanings analogous to recv* above)
+    -- arguments for send_trigger (meanings analogous to those of recv* above)
     sendMsgType :: Stream Word8
     sendMsgType = if wannaPrepare
         then prepare
