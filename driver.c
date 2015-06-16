@@ -106,28 +106,12 @@ int main(int argc, char ** argv)
 
     scanf("%lf\n", &temp);
 
-    /*if (my_id == 0) // for debug
-    {
-        send_trigger(1,Prepare,3,5,4.2);
-        send_udp();
-    }*/
-
     success = false;
     while(!success) {
-        int tmp = recv_udp();
-        if (tmp > 0)
-        {
-            // do something with data we have (or not)
-            /*printf("I have got: from: %d, m_t: %d, N: %d, last_N: %d, Temp: %f\n", recv_from, recv_message_type, recv_n, recv_last_n, recv_temp);*/
-        }
-        else
-        {
-            /*printf("I've got nothing\n"); // for debug*/
-        }
+        recv_udp();
         rand01 = (double)rand() / RAND_MAX;
         step();
         send_udp();
-        /*sleep(1);*/
         struct timespec delay = { .tv_sec = 0, .tv_nsec = 500000000};
         nanosleep(&delay, 0);
     }
@@ -220,8 +204,6 @@ void raw_send_udp(void)
     buff[2] = send_n;
     *(double*)(&buff[3]) = send_temp;
     buff[5] = send_last_n;
-
-    /*printf("Sending to %d -> my_id: %d, mt: %d, N: %d, last_N: %d, temp: %f\n", send_to, my_id, send_message_type, send_n, send_last_n, send_temp);*/
 
     int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend, sizeof(sa_family_t) + strlen(friend_path_to_file));
     if (retv < 0) {
