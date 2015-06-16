@@ -46,6 +46,8 @@ paxos = do
     myId        = externW8 "my_id" $ Just $ repeat 0
     -- stream of random doubles between 0 and 1
     rand01      = externD "rand01" $ Just $ P.cycle [0.15, 0.05, 0.95, 0.85, 0.75, 0.65, 0.55, 0.45, 0.35, 0.25]
+    -- stream with common offset for the entire group
+    offset      = myId - (myId `mod` 4)
 
     -- arguments for send_trigger (meanings analogous to recv* above)
     sendMsgType :: Stream Word8
@@ -131,25 +133,25 @@ paxos = do
     myPromisors3, laggingPromisors3 :: Stream Bool
     myPromisors0 = if wannaPrepare
         then false
-        else if validPromise && recvFrom == 0
+        else if validPromise && recvFrom == (0 + offset)
             then true
             else laggingPromisors0
     laggingPromisors0 =  [False] ++ myPromisors0
     myPromisors1 = if wannaPrepare
         then false
-        else if validPromise && recvFrom == 1
+        else if validPromise && recvFrom == (1 + offset)
             then true
             else laggingPromisors1
     laggingPromisors1 =  [False] ++ myPromisors1
     myPromisors2 = if wannaPrepare
         then false
-        else if validPromise && recvFrom == 2
+        else if validPromise && recvFrom == (2 + offset)
             then true
             else laggingPromisors2
     laggingPromisors2 =  [False] ++ myPromisors2
     myPromisors3 = if wannaPrepare
         then false
-        else if validPromise && recvFrom == 3
+        else if validPromise && recvFrom == (3 + offset)
             then true
             else laggingPromisors3
     laggingPromisors3 =  [False] ++ myPromisors3
@@ -192,25 +194,25 @@ paxos = do
     myAckers3, laggingAckers3 :: Stream Bool
     myAckers0 = if wannaPoll
         then false
-        else if validAck && recvFrom == 0
+        else if validAck && recvFrom == (0 + offset)
             then true
             else laggingAckers0
     laggingAckers0 = [False] ++ myAckers0
     myAckers1 = if wannaPoll
         then false
-        else if validAck && recvFrom == 1
+        else if validAck && recvFrom == (1 + offset)
             then true
             else laggingAckers1
     laggingAckers1 = [False] ++ myAckers1
     myAckers2 = if wannaPoll
         then false
-        else if validAck && recvFrom == 2
+        else if validAck && recvFrom == (2 + offset)
             then true
             else laggingAckers2
     laggingAckers2 = [False] ++ myAckers2
     myAckers3 = if wannaPoll
         then false
-        else if validAck && recvFrom == 3
+        else if validAck && recvFrom == (3 + offset)
             then true
             else laggingAckers3
     laggingAckers3 = [False] ++ myAckers3

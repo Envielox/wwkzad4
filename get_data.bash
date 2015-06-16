@@ -19,17 +19,23 @@ args[0]="0 1 2 3"
 args[1]="1 0 2 3"
 args[2]="2 0 1 3"
 args[3]="3 0 1 2"
+args[4]="4 5 6 7"
+args[5]="5 4 6 7"
+args[6]="6 4 5 7"
+args[7]="7 4 5 6"
 
 for (( i = 0; i < 4; i++ )); do
     data=$(curl -s ${addr[$i]})
     stripped_data=$(echo $data | sed -e 's/"[^"]*": //g' | tr -d '{},"')
 
     echo "Starting process with: " $stripped_data
+    data_array=($stripped_data)
 
-    (echo $stripped_data | ./driver ${args[$i]} > output${i}.out 2> err${i}.err) &
+    (echo ${data_array[2]} | ./driver ${args[$i]} 2> err${i}.err) &
+    sleep 1
+    (echo ${data_array[3]} | ./driver ${args[ $i + 4 ]} 2> err${i}.err) &
     sleep 1
 done
-
 
 
 while [ true ]

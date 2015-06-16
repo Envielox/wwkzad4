@@ -40,7 +40,6 @@ int32_t send_last_n;
 
 bool success;
 double success_temp;
-double success_hum;
 
 // -- driver helper functions
 
@@ -59,7 +58,6 @@ void send_udp(void);
 
 // variables shared with copilot
 double temp;
-double hum;
 
 double rand01;
 
@@ -74,11 +72,13 @@ void send_trigger(uint8_t to, uint8_t type, int32_t n, int32_t last_n, double te
 }
 
 // report that consensus has been reached
-void success_trigger(double temp, double hum) {
+void success_trigger(double temp) {
     success = 1;
     success_temp = temp;
-    success_hum = hum;
-    printf("Results temp = %f, hum = %f\n", temp, hum);
+    if (my_id / 4 == 0)
+        printf("Results temp = %f\n", temp);
+    else
+        printf("Results hum = %f\n", temp);
     exit(0);
 }
 
@@ -104,7 +104,7 @@ int main(int argc, char ** argv)
     // --- SOCKET TIME ---
     initialize();
 
-    scanf("%*s %*s %lf %lf\n", &temp, &hum);
+    scanf("%lf\n", &temp);
 
     /*if (my_id == 0) // for debug
     {
@@ -112,19 +112,17 @@ int main(int argc, char ** argv)
         send_udp();
     }*/
 
-    printf("Starting Id: %d, temp: %f, hum: %f\n", my_id, temp, hum);
-
     success = false;
     while(!success) {
         int tmp = recv_udp();
         if (tmp > 0)
         {
             // do something with data we have (or not)
-            printf("I have got: from: %d, m_t: %d, N: %d, last_N: %d, Temp: %f\n", recv_from, recv_message_type, recv_n, recv_last_n, recv_temp);
+            /*printf("I have got: from: %d, m_t: %d, N: %d, last_N: %d, Temp: %f\n", recv_from, recv_message_type, recv_n, recv_last_n, recv_temp);*/
         }
         else
         {
-            printf("I've got nothing\n"); // for debug
+            /*printf("I've got nothing\n"); // for debug*/
         }
         rand01 = (double)rand() / RAND_MAX;
         step();
@@ -223,7 +221,7 @@ void raw_send_udp(void)
     *(double*)(&buff[3]) = send_temp;
     buff[5] = send_last_n;
 
-    printf("Sending to %d -> my_id: %d, mt: %d, N: %d, last_N: %d, temp: %f\n", send_to, my_id, send_message_type, send_n, send_last_n, send_temp);
+    /*printf("Sending to %d -> my_id: %d, mt: %d, N: %d, last_N: %d, temp: %f\n", send_to, my_id, send_message_type, send_n, send_last_n, send_temp);*/
 
     int retv = sendto(sockfd, buff, 6 * sizeof(int), 0, (struct sockaddr*)&friend, sizeof(sa_family_t) + strlen(friend_path_to_file));
     if (retv < 0) {
