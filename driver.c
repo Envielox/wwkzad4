@@ -75,11 +75,6 @@ void send_trigger(uint8_t to, uint8_t type, int32_t n, int32_t last_n, double te
 void success_trigger(double temp) {
     success = 1;
     success_temp = temp;
-    if (my_id / 4 == 0)
-        printf("Results temp = %f\n", temp);
-    else
-        printf("Results hum = %f\n", temp);
-    exit(0);
 }
 
 int main(int argc, char ** argv)
@@ -115,6 +110,10 @@ int main(int argc, char ** argv)
         struct timespec delay = { .tv_sec = 0, .tv_nsec = 500000000};
         nanosleep(&delay, 0);
     }
+    if (my_id / 4 == 0)
+        printf("Results temp = %f\n", success_temp);
+    else
+        printf("Results hum = %f\n", success_temp);
 
     cleanup();
     return 0;
