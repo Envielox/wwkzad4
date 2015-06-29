@@ -77,10 +77,10 @@ paxos = do
 
     -- consensus reached (acks have been received from a majority)
     success :: Stream Bool
-    success = myAckers0 && myAckers1 && myAckers2
-        || myAckers0 && myAckers1 && myAckers3
-        || myAckers0 && myAckers2 && myAckers3
-        || myAckers1 && myAckers2 && myAckers3
+    success = myAckers 0 && myAckers 1 && myAckers 2
+        || myAckers 0 && myAckers 1 && myAckers 3
+        || myAckers 0 && myAckers 2 && myAckers 3
+        || myAckers 1 && myAckers 2 && myAckers 3
 
     -- consensus value
     successTemp :: Stream Double
@@ -188,34 +188,13 @@ paxos = do
     laggingTemp = [0] ++ myTemp
 
     -- true if I have received an acknowledge message in response to my accept
-    myAckers0, laggingAckers0 :: Stream Bool
-    myAckers1, laggingAckers1 :: Stream Bool
-    myAckers2, laggingAckers2 :: Stream Bool
-    myAckers3, laggingAckers3 :: Stream Bool
-    myAckers0 = if wannaPoll
+    myAckers, laggingAckers :: Word8 -> Stream Bool
+    myAckers i = if wannaPoll
         then false
-        else if validAck && recvFrom == (0 + offset)
+        else if validAck && recvFrom == (constant i + offset)
             then true
-            else laggingAckers0
-    laggingAckers0 = [False] ++ myAckers0
-    myAckers1 = if wannaPoll
-        then false
-        else if validAck && recvFrom == (1 + offset)
-            then true
-            else laggingAckers1
-    laggingAckers1 = [False] ++ myAckers1
-    myAckers2 = if wannaPoll
-        then false
-        else if validAck && recvFrom == (2 + offset)
-            then true
-            else laggingAckers2
-    laggingAckers2 = [False] ++ myAckers2
-    myAckers3 = if wannaPoll
-        then false
-        else if validAck && recvFrom == (3 + offset)
-            then true
-            else laggingAckers3
-    laggingAckers3 = [False] ++ myAckers3
+            else laggingAckers  i
+    laggingAckers i = [False] ++ myAckers i
 
     -- true when it's a good idea to send a particular type of message
     wannaPrepare, wannaPromise, wannaPoll, wannaAck :: Stream Bool
